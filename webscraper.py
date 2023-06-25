@@ -2,14 +2,32 @@ import os
 import requests
 from bs4 import BeautifulSoup
 
+base_url = 'https://www.flsenate.gov'
 
-def scrape_approved_bills():
+def main():
     url = 'https://www.flsenate.gov/Session/Bills/2023'
     html = requests.get(url)
     soup = BeautifulSoup(html.content, 'html.parser')
 
+    # First page
+    scrape_bills_page(url)
 
-    # Find the table containing the approved bills
+    # Iterate through every page on the website
+    nxt_pg = soup.find('a', class_='next')
+    while nxt_pg:
+        next_url = base_url + nxt_pg['href']
+        print(next_url)
+        scrape_bills_page(next_url)
+
+        html = requests.get(next_url)
+        soup = BeautifulSoup(html.content, 'html.parser')
+        nxt_pg = soup.find('a', class_='next')
+
+def scrape_bills_page(url):
+    html = requests.get(url)
+    soup = BeautifulSoup(html.content, 'html.parser')
+
+    # Find the table containing the bills
     table = soup.find('table', class_='width100 clickableRows tbl')
 
     if table:
@@ -25,12 +43,11 @@ def scrape_approved_bills():
             for row in tbody.find_all('tr'):
                 columns = row.find_all('th')
 
-                # Extract the link to the bill text from the first column
+                # Extract the link to the bill page from the first column
                 link = columns[0].find('a')
-                print(link)
                 if link:
                     bill_num = link.text.strip()
-                    bill_pg_url = 'https://www.flsenate.gov' + link['href']
+                    bill_pg_url = base_url + link['href']
 
                     # Fetch the bill text page
                     bill_html = requests.get(bill_pg_url)
@@ -44,7 +61,7 @@ def scrape_approved_bills():
 
                     if bill_txt_elem:
                         # Extract the bill text
-                        bill_txt_url = 'https://www.flsenate.gov' + bill_txt_elem['href']
+                        bill_txt_url = base_url + bill_txt_elem['href']
                         bill_txt_html = requests.get(bill_txt_url)
                         bill_txt_soup = BeautifulSoup(bill_txt_html.content, 'html.parser')
                         bill_txt = bill_txt_soup.get_text()
@@ -63,5 +80,5 @@ def scrape_approved_bills():
     else:
         print("Table not found.")
 
-# Call the function to start scraping approved bills and store them in files
-scrape_approved_bills()
+
+main()
